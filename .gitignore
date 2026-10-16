@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-preview/
+main.js
+styles.css
+*.zip
+.DS_Store
+playwright-report/
+test-results/
+.env
+.env.*
+*.log
+*.tsbuildinfo
+**/.obsidian/

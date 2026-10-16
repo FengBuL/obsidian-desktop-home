@@ -1,0 +1,9 @@
+{
+  "id": "desktop-home",
+  "name": "Desktop Home",
+  "version": "0.1.1",
+  "minAppVersion": "1.7.2",
+  "description": "A personal desktop with wallpapers, customizable widgets, and your notes close at hand.",
+  "author": "Shovy",
+  "isDesktopOnly": true
+}

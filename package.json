@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-desktop-home",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run typecheck && node scripts/build.mjs",
+    "build:preview": "vite build",
+    "check": "npm run test && npm run build && npm run build:preview"
+  },
+  "dependencies": {
+    "lucide": "^0.468.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.0.0",
+    "obsidian": "latest",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0",
+    "vitest": "^3.2.0",
+    "@playwright/test": "^1.56.0"
+  }
+}

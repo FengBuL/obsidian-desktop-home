@@ -1,0 +1,10 @@
+import { build } from 'esbuild';
+import { mkdir, copyFile, readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+const output = 'dist/desktop-home';
+await mkdir(`${output}/assets`, { recursive: true });
+await build({ entryPoints: ['src/main.ts'], outfile: `${output}/main.js`, bundle: true, external: ['obsidian'], format: 'cjs', target: 'es2021', minify: true, logLevel: 'info' });
+for (const [from, to] of [['manifest.json', 'manifest.json'], ['src/home.css', 'styles.css'], ['assets/alpine.png', 'assets/alpine.png'], ['README.md', 'README.md'], ['THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.md']]) await copyFile(from, `${output}/${to}`);
+const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+execFileSync('/usr/bin/zip', ['-qr', `desktop-home-${manifest.version}.zip`, 'desktop-home'], { cwd: 'dist' });
+console.log(`Local package: dist/desktop-home-${manifest.version}.zip`);
