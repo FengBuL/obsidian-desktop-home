@@ -1,5 +1,5 @@
 import { defaultSettings, defaultSize, moveWidget, normalizeSettings, resizeWidget, togglePin, renamePinnedPaths, type City, type Settings, type Widget, type WidgetKind, type WeatherSnapshot } from '../model';
-import { hasExactNote, searchNotes, type Note } from '../notes';
+import { folderOf, hasExactNote, searchNotes, toneOf, type Note } from '../notes';
 import type { TaskItem } from '../tasks';
 import type { DesktopHost } from '../host';
 import { WeatherService } from '../weather';
@@ -169,7 +169,7 @@ export class Desktop {
     const day = now.toDateString(); const changed = this.day && day !== this.day; this.day = day;
     if (changed) { this.readNotes(); this.renderBoard(); void this.loadTasks(); }
     if (this.stale && this.visible()) this.refreshVault();
-    updateClock(this.board, now);
+    updateClock(this.board, now, time);
   }
   private change(patch: Partial<Settings>) { this.commit({ ...this.settings, ...patch }); }
   private commit(settings: Settings, remember = true) {
@@ -247,14 +247,16 @@ export class Desktop {
   }
   private renderDock() {
     const dock = el(this.doc, 'nav', 'dh-dock'); labelWith(dock, '桌面快捷入口');
-    for (const [label, name, color, action] of [
-      ['今日日记', 'book', 'purple', () => this.daily()], ['查找笔记', 'search', 'silver', () => { this.input.focus(); this.showSearch(); }],
-      ['最近笔记', 'note', 'blue', () => { this.input.value = ''; this.input.focus(); this.showSearch(); }],
-      ['固定笔记', 'star', 'gold', () => this.panels.pins()], ['天气城市', 'partly', 'coral', () => this.panels.cities()], ['桌面设置', 'settings', 'slate', () => this.panels.settings()],
+    for (const [label, name, tone, action] of [
+      ['今日日记', 'book', 'daily', () => this.daily()], ['查找笔记', 'search', 'search', () => { this.input.focus(); this.showSearch(); }],
+      ['最近笔记', 'history', 'recent', () => { this.input.value = ''; this.input.focus(); this.showSearch(); }],
+      ['固定笔记', 'star', 'pins', () => this.panels.pins()], ['天气城市', 'partly', 'weather', () => this.panels.cities()], ['桌面设置', 'settings', 'settings', () => this.panels.settings()],
     ] as [string, IconName, string, () => void][]) {
+      if (tone === 'settings') { const divider = el(this.doc, 'i', 'dh-dock-divider'); divider.setAttribute('aria-hidden', 'true'); dock.append(divider); }
       // 自定义提示气泡负责悬停文字，按钮用 aria-labelledby 指向它，避免 Obsidian 再弹一个提示。
-      const item = rowButton(this.doc, action, `dh-dock-item dh-dock-${color}`); const tip = el(this.doc, 'span', 'dh-dock-tooltip', label); tip.id = `${this.instanceId}-dock-${name}`;
-      item.setAttribute('aria-labelledby', tip.id); item.append(icon(this.doc, name, 25), tip); dock.append(item);
+      const item = rowButton(this.doc, action, `dh-dock-item dh-dock-${tone}`); const tip = el(this.doc, 'span', 'dh-dock-tooltip', label); tip.id = `${this.instanceId}-dock-${name}`;
+      const tile = el(this.doc, 'span', 'dh-dock-tile'); tile.append(icon(this.doc, name, 24));
+      item.setAttribute('aria-labelledby', tip.id); item.append(tile, tip); dock.append(item);
     }
     this.root.append(dock);
   }
@@ -266,12 +268,13 @@ export class Desktop {
     if (!this.matches.length && !this.createQuery) this.results.append(el(this.doc, 'p', 'dh-empty-copy', query ? '换个关键词试试，标题、别名和文件夹名称都能搜。' : '库里还没有笔记。'));
     this.matches.forEach((note, index) => {
       const row = rowButton(this.doc, () => { this.openNote(note.path); this.hideSearch(); }, 'dh-search-result'); row.id = `${this.instanceId}-result-${index}`; row.setAttribute('role', 'option');
-      const copy = el(this.doc, 'span'); copy.append(el(this.doc, 'strong', '', note.title), el(this.doc, 'small', '', note.path)); row.append(icon(this.doc, 'note', 18), copy, icon(this.doc, 'arrow', 16)); this.results.append(row);
+      const copy = el(this.doc, 'span'); copy.append(el(this.doc, 'strong', '', note.title), el(this.doc, 'small', '', note.path)); const tile = el(this.doc, 'span', 'dh-note-icon'); tile.dataset.tone = String(toneOf(folderOf(note.path) || note.path)); tile.append(icon(this.doc, 'note', 15));
+      row.append(tile, copy, icon(this.doc, 'arrow', 15)); this.results.append(row);
     });
     if (this.createQuery) {
       const index = this.matches.length; const name = this.createQuery;
       const row = rowButton(this.doc, () => this.createNote(name), 'dh-search-result dh-search-create'); row.id = `${this.instanceId}-result-${index}`; row.setAttribute('role', 'option');
-      const copy = el(this.doc, 'span'); copy.append(el(this.doc, 'strong', '', `新建笔记「${name}」`), el(this.doc, 'small', '', '按 Enter 创建并打开')); row.append(icon(this.doc, 'newNote', 18), copy); this.results.append(row);
+      const copy = el(this.doc, 'span'); copy.append(el(this.doc, 'strong', '', `新建笔记「${name}」`), el(this.doc, 'small', '', '按 Enter 创建并打开')); const tile = el(this.doc, 'span', 'dh-note-icon dh-create-icon'); tile.append(icon(this.doc, 'newNote', 15)); row.append(tile, copy); this.results.append(row);
     }
     this.results.hidden = false; this.input.setAttribute('aria-expanded', 'true'); this.highlightSearch();
   }

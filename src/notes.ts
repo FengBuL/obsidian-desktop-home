@@ -25,3 +25,18 @@ export function simpleDateFormat(date: Date, format: string): string {
     : token === 'DD' ? String(date.getDate()).padStart(2, '0') : token === 'M' ? String(date.getMonth() + 1) : String(date.getDate()));
 }
 export function joinPath(folder: string, name: string): string { const f = folder.trim().replace(/^\/+|\/+$/g, ''); return `${f ? `${f}/` : ''}${name}.md`; }
+/** 相对时间：刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / M月D日。 */
+export function relativeTime(time: number, now = Date.now()): string {
+  const diff = now - time; const minute = 60_000; const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+  if (diff < minute) return '刚刚';
+  if (diff < 60 * minute) return `${Math.floor(diff / minute)} 分钟前`;
+  if (time >= startOfToday) return `${Math.floor(diff / (60 * minute))} 小时前`;
+  const days = Math.ceil((startOfToday - time) / 86_400_000);
+  if (days <= 1) return '昨天';
+  if (days < 7) return `${days} 天前`;
+  const d = new Date(time); return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+/** 按路径稳定地分配 0-5 的色调，用于笔记图标底色。 */
+export function toneOf(path: string): number { let h = 0; for (const ch of path) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % 6; }
+/** 所在文件夹名，根目录返回空字符串。 */
+export function folderOf(path: string): string { const i = path.lastIndexOf('/'); return i < 0 ? '' : path.slice(0, i).split('/').pop() ?? ''; }

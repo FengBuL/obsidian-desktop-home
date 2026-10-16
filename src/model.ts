@@ -7,7 +7,7 @@ export const WALLPAPERS = ['alpine', 'dusk', 'custom', 'vault'] as const;
 export type WallpaperKind = typeof WALLPAPERS[number];
 export interface Widget { id: string; kind: WidgetKind; size: WidgetSize }
 export interface City { name: string; latitude: number; longitude: number; region?: string }
-export interface WeatherSnapshot { locationKey: string; temperature: number; code: number; updatedAt: number; days: { date: string; high: number; low: number; code: number }[] }
+export interface WeatherSnapshot { locationKey: string; temperature: number; code: number; updatedAt: number; isDay?: boolean; days: { date: string; high: number; low: number; code: number }[] }
 export interface Settings {
   version: 1; theme: Theme; wallpaper: WallpaperKind; customImage: string; wallpaperPath: string;
   dim: number; blur: number; clock24: boolean; openOnStart: boolean;

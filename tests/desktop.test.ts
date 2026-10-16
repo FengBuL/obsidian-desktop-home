@@ -147,7 +147,7 @@ describe('desktop interaction', () => {
     const { root, save, host } = setupWith({ getTasks: vi.fn(async () => [task]), completeTask: vi.fn(async () => true), addTask: vi.fn(async () => {}) }, initial);
     await vi.advanceTimersByTimeAsync(0);
     expect(root.querySelector('.dh-widget-tasks')?.textContent).toContain('写周报');
-    click('完成：写周报'); await vi.advanceTimersByTimeAsync(0);
+    click('完成：写周报'); await vi.advanceTimersByTimeAsync(500);
     expect(host.completeTask).toHaveBeenCalledWith(task);
     const memo = root.querySelector<HTMLTextAreaElement>('.dh-memo-input')!; memo.focus(); memo.value = '记得买花'; memo.dispatchEvent(new Event('input'));
     await vi.advanceTimersByTimeAsync(300);

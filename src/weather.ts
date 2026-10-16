@@ -8,13 +8,14 @@ export function cityResults(data: unknown): City[] {
 export const locationKey = (city: City) => `${city.latitude},${city.longitude}`;
 export function forecastUrl(city: City): string {
   if (!validCity(city)) throw new Error('城市坐标无效');
-  return `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({ latitude: String(city.latitude), longitude: String(city.longitude), current: 'temperature_2m,weather_code', daily: 'weather_code,temperature_2m_max,temperature_2m_min', timezone: 'auto', forecast_days: '5' })}`;
+  return `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({ latitude: String(city.latitude), longitude: String(city.longitude), current: 'temperature_2m,weather_code,is_day', daily: 'weather_code,temperature_2m_max,temperature_2m_min', timezone: 'auto', forecast_days: '5' })}`;
 }
 export function parseForecast(input: unknown, city: City, now = Date.now()): WeatherSnapshot {
   if (!record(input) || !record(input.current) || !record(input.daily)) throw new Error('天气数据格式异常');
   const d = input.daily;
   if (![d.time, d.temperature_2m_max, d.temperature_2m_min, d.weather_code].every(Array.isArray)) throw new Error('天气预报不完整');
-  const result = { locationKey: locationKey(city), temperature: Math.round(input.current.temperature_2m as number), code: input.current.weather_code, updatedAt: now,
+  const isDay = input.current.is_day === 1 ? true : input.current.is_day === 0 ? false : undefined;
+  const result = { locationKey: locationKey(city), temperature: Math.round(input.current.temperature_2m as number), code: input.current.weather_code, updatedAt: now, isDay,
     days: (d.time as unknown[]).slice(0, 5).map((date, i) => ({ date, high: (d.temperature_2m_max as unknown[])[i], low: (d.temperature_2m_min as unknown[])[i], code: (d.weather_code as unknown[])[i] })) };
   if (typeof input.current.temperature_2m !== 'number' || !validWeather(result)) throw new Error('天气数据无效');
   return result;

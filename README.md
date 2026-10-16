@@ -10,6 +10,8 @@ Obsidian 个人桌面首页，采用苹果桌面视觉：壁纸、大时钟、�
 | --- | --- |
 | ![深色](docs/images/dark.jpg) | ![手机](docs/images/mobile.jpg) |
 
+![组件特写](docs/images/widgets.jpg)
+
 截图中的笔记、待办与天气均为演示数据。
 
 ## 使用

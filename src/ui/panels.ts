@@ -135,11 +135,11 @@ export class Panels {
   widgets() {
     const doc = this.root.ownerDocument; const panel = this.create('添加组件', '选好尺寸，把喜欢的信息放到桌面。');
     const descriptions: Record<WidgetKind, string> = { clock: '留意时间，也留一点空白', weather: '看看窗外，安排今天', calendar: '今天，以及接下来的日子；有日记的日子会标出来', recent: '接着上次的灵感继续', pinned: '让常用笔记触手可及', tasks: '今日日记里的待办和到期任务，可直接勾选', memo: '随手记一句话，不新建笔记' };
-    const marks: Record<WidgetKind, IconName> = { clock: 'clock', weather: 'partly', calendar: 'calendar', recent: 'note', pinned: 'pin', tasks: 'tasks', memo: 'memo' };
+    const marks: Record<WidgetKind, IconName> = { clock: 'clock', weather: 'partly', calendar: 'calendar', recent: 'history', pinned: 'pin', tasks: 'tasks', memo: 'memo' };
     for (const kind of KINDS) {
       const exists = this.actions.getSettings().widgets.some(w => w.kind === kind);
       const row = rowButton(doc, () => { this.actions.add(kind); this.close(); }, 'dh-add-widget'); row.disabled = exists; row.dataset.kind = kind;
-      const mark = el(doc, 'span', `dh-add-widget-mark dh-mark-${kind}`); mark.append(icon(doc, marks[kind], 26));
+      const mark = el(doc, 'span', `dh-add-widget-mark dh-mark-${kind}`); mark.append(icon(doc, marks[kind], 22));
       const copy = el(doc, 'span'); copy.append(el(doc, 'strong', '', WIDGET_NAMES[kind]), el(doc, 'small', '', descriptions[kind])); row.append(mark, copy, icon(doc, exists ? 'check' : 'plus', 18)); panel.append(row);
     }
   }

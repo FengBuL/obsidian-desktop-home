@@ -52,6 +52,13 @@ const showcase = (): ReturnType<typeof defaultSettings> => {
   s.widgets = [...s.widgets, { id: 'tasks', kind: 'tasks', size: 'm' }, { id: 'memo', kind: 'memo', size: 'm' }]; return s;
 };
 const settings = stored ? normalizeSettings(stored) : showcase();
+// ?layout=a|b 把各组件换成其他尺寸，便于检查全部版式。
+const layouts: Record<string, [string, string][]> = {
+  a: [['clock', 'm'], ['calendar', 'm'], ['weather', 'l'], ['tasks', 's'], ['recent', 's'], ['pinned', 'm'], ['memo', 's']],
+  b: [['clock', 'l'], ['calendar', 'l'], ['pinned', 'l'], ['weather', 's'], ['memo', 'm'], ['tasks', 's']],
+};
+const layout = layouts[params.get('layout') ?? ''];
+if (layout) { settings.pins = notes.map(n => n.path).slice(0, 6); settings.widgets = normalizeSettings({ widgets: layout.map(([kind, size]) => ({ id: kind, kind, size })) }).widgets; }
 const themeParam = params.get('theme'); if (themeParam) settings.theme = normalizeSettings({ theme: themeParam }).theme;
 if (shot) { settings.city = { name: '东京', latitude: 35.68, longitude: 139.69, region: '东京都 · 日本' }; }
 function notify(message: string) {
@@ -87,7 +94,7 @@ const host: DesktopHost = {
   getJson: async url => {
     if (shot) {
       const day = (offset: number) => localDate(new Date(now + offset * 86_400_000));
-      return url.includes('geocoding') ? { results: [] } : { current: { temperature_2m: 19.6, weather_code: 1 }, daily: { time: [0, 1, 2, 3, 4].map(day), temperature_2m_max: [22, 21, 19, 23, 24], temperature_2m_min: [15, 14, 13, 15, 16], weather_code: [1, 3, 61, 0, 2] } };
+      return url.includes('geocoding') ? { results: [] } : { current: { temperature_2m: 19.6, weather_code: 1, is_day: 1 }, daily: { time: [0, 1, 2, 3, 4, 5, 6].map(day), temperature_2m_max: [22, 21, 19, 23, 24, 25, 22], temperature_2m_min: [15, 14, 13, 15, 16, 17, 14], weather_code: [1, 3, 61, 0, 2, 0, 95] } };
     }
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) }); if (!response.ok) throw new Error('network'); return response.json(); },
   notify, subscribe: fn => { subscriptions.add(fn); return () => subscriptions.delete(fn); },
