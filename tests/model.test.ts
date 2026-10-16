@@ -12,7 +12,7 @@ describe('saved desktop configuration', () => {
     expect(normalizeSettings(null)).toEqual(defaultSettings());
     const settings = normalizeSettings({ theme: '<script>', wallpaper: 'custom', customImage: 'javascript:alert(1)', dim: 5, blur: -1,
       widgets: [{ id: 'a', kind: 'recent', size: 'giant' }, { id: 'a', kind: 'clock', size: 's' }, { id: 'b', kind: 'unknown' }] });
-    expect(settings.theme).toBe('sky');
+    expect(settings.theme).toBe(defaultSettings().theme);
     expect(settings.wallpaper).toBe('alpine');
     expect(settings.customImage).toBe('');
     expect(settings.dim).toBeLessThanOrEqual(0.65);
@@ -48,5 +48,24 @@ describe('saved desktop configuration', () => {
     expect(renamePinnedPaths(moved, 'Archive/A.md', 'Archive/New.md').pins[0]).toBe('Archive/New.md');
     expect(s.pins[0]).toBe('Work/A.md');
     expect(renamePinnedPaths(s, 'Missing.md', 'New.md')).toBe(s);
+  });
+});
+import { isExcluded, parseFolderList, MEMO_LIMIT } from '../src/model';
+describe('new settings', () => {
+  it('validates memo, daily, exclusion and vault wallpaper fields', () => {
+    const s = normalizeSettings({ theme: 'auto', memo: 'x'.repeat(MEMO_LIMIT + 5), dailyFolder: '/Journal/', dailyFormat: ' ', excludeFolders: ['Templates/', 3, 'Templates'], wallpaper: 'vault', wallpaperPath: 'notes.md' });
+    expect(s.theme).toBe('auto'); expect(s.memo).toHaveLength(MEMO_LIMIT); expect(s.dailyFolder).toBe('Journal'); expect(s.dailyFormat).toBe('YYYY-MM-DD');
+    expect(s.excludeFolders).toEqual(['Templates']); expect(s.wallpaper).toBe('alpine');
+    expect(normalizeSettings({ wallpaper: 'vault', wallpaperPath: 'Images/bg.jpg' }).wallpaper).toBe('vault');
+  });
+  it('keeps old saved data working and follows a renamed wallpaper image', () => {
+    const old = normalizeSettings({ version: 1, theme: 'paper', widgets: [{ id: 'clock', kind: 'clock', size: 's' }] });
+    expect(old.theme).toBe('paper'); expect(old.memo).toBe(''); expect(old.dailyFollowCore).toBe(true);
+    const s = { ...defaultSettings(), wallpaper: 'vault' as const, wallpaperPath: 'Images/bg.jpg' };
+    expect(renamePinnedPaths(s, 'Images', 'Media').wallpaperPath).toBe('Media/bg.jpg');
+  });
+  it('parses folder lists and matches folder boundaries', () => {
+    expect(parseFolderList('模板\n附件, 模板 ，/Archive/Old/')).toEqual(['模板', '附件', 'Archive/Old']);
+    expect(isExcluded('模板/a.md', ['模板'])).toBe(true); expect(isExcluded('模板库/a.md', ['模板'])).toBe(false);
   });
 });
