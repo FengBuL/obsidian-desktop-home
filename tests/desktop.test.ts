@@ -6,16 +6,24 @@ const notes = [{ path: 'Ideas.md', title: '想法收集', modified: 100 }, { pat
 let desktop: Desktop;
 beforeEach(() => vi.useFakeTimers());
 afterEach(async () => { desktop?.destroy(); await Promise.resolve(); document.body.replaceChildren(); vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
-function setup(saved = defaultSettings()) {
+function setup(saved = defaultSettings()) { return setupWith({}, saved); }
+function setupWith(extra: Partial<DesktopHost>, saved = defaultSettings()) {
   const root = document.createElement('div'); document.body.append(root);
   const save = vi.fn(async (_settings: Settings) => {});
   const notify = vi.fn(); const openNote = vi.fn(async (_path: string) => {});
   let notifyChange: (change?: { oldPath: string; newPath: string }) => void = () => {};
   const getNotes = vi.fn(() => notes); const getRecent = vi.fn(() => notes);
-  const host: DesktopHost = { preview: true, wallpaperUrl: '/wallpaper.png', getNotes, getRecent, openNote, openDaily: async () => {}, save, getJson: async () => ({}), notify, subscribe: fn => { notifyChange = fn; return () => {}; } };
-  desktop = new Desktop(root, host, saved); desktop.mount(); return { root, save, notify, openNote, getNotes, emit: (event?: { oldPath: string; newPath: string }) => notifyChange(event) };
+  const host: DesktopHost = { preview: true, wallpaperUrl: '/wallpaper.png', getNotes, getRecent, openNote, openDaily: async () => {}, save, getJson: async () => ({}), notify, subscribe: fn => { notifyChange = fn; return () => {}; }, ...extra };
+  desktop = new Desktop(root, host, saved); desktop.mount(); return { root, host, save, notify, openNote, getNotes, emit: (event?: { oldPath: string; newPath: string }) => notifyChange(event) };
 }
-function click(label: string) { const btn = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`); expect(btn, label).not.toBeNull(); btn!.click(); }
+/** 按可访问名称找按钮：aria-label、aria-labelledby、卡片标题或按钮文字。 */
+function accessibleName(b: HTMLElement): string {
+  const labelledBy = b.getAttribute('aria-labelledby');
+  return b.getAttribute('aria-label') ?? (labelledBy ? document.getElementById(labelledBy)?.textContent ?? '' : b.querySelector('strong')?.textContent ?? b.textContent?.trim() ?? '');
+}
+function find(label: string) { return [...document.querySelectorAll<HTMLButtonElement>('button')].find(b => accessibleName(b) === label) ?? null; }
+function click(label: string) { const btn = find(label); expect(btn, label).not.toBeNull(); btn?.click(); }
+const searchInput = () => document.querySelector<HTMLInputElement>('.dh-search-input')!;
 describe('desktop interaction', () => {
   it('renders five widgets and treats note titles as plain text', () => {
     const { root } = setup();
@@ -25,7 +33,8 @@ describe('desktop interaction', () => {
   });
   it('searches locally and opens the matching note with Enter', async () => {
     const { openNote } = setup();
-    const input = document.querySelector<HTMLInputElement>('[aria-label="搜索笔记"]')!;
+    const input = searchInput();
+    expect(document.getElementById(input.getAttribute('aria-labelledby')!)?.textContent).toBe('搜索笔记');
     input.value = '想法'; input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await Promise.resolve();
@@ -40,7 +49,7 @@ describe('desktop interaction', () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(save.mock.calls.at(-1)?.[0].widgets.find(w => w.kind === 'weather')?.size).toBe('l');
     click('移除天气'); expect(root.querySelectorAll('.dh-widget')).toHaveLength(4);
-    click('添加组件'); click('添加天气');
+    click('添加组件'); document.querySelector<HTMLButtonElement>('.dh-add-widget[data-kind="weather"]')!.click();
     expect(root.querySelectorAll('.dh-widget')).toHaveLength(5);
   });
   it('changes theme without resetting layout and persists settings', async () => {
@@ -76,7 +85,7 @@ describe('desktop interaction', () => {
     click('桌面外观'); click('午夜');
     expect(root.querySelector('.dh-clock-face')).toBe(clock);
     expect(root.querySelector('.dh-widget-weather')).toBe(weather);
-    const slider = root.querySelector<HTMLInputElement>('[aria-label="壁纸模糊"]')!;
+    const slider = root.querySelector<HTMLInputElement>('[data-name="壁纸模糊"]')!;
     slider.value = '8'; slider.dispatchEvent(new Event('input'));
     expect(root.querySelector('.dh-clock-face')).toBe(clock);
   });
@@ -92,7 +101,7 @@ describe('desktop interaction', () => {
     const { root } = setup(initial); click('编辑桌面');
     const remove = root.querySelector<HTMLButtonElement>('[aria-label="移除时钟"]')!;
     remove.focus(); remove.click();
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('添加第一个组件');
+    expect(document.activeElement?.textContent).toBe('添加第一个组件');
   });
   it('scans notes once for the board, then reuses the snapshot on appearance changes', () => {
     const { getNotes } = setup(); expect(getNotes).toHaveBeenCalledTimes(1);
@@ -122,5 +131,56 @@ describe('desktop interaction', () => {
     const { root } = setup(initial); click('编辑桌面'); click('恢复默认布局');
     await vi.advanceTimersByTimeAsync(0);
     expect(root.querySelector('.dh-widget-weather')?.textContent).toContain('21°');
+  });
+  it('offers to create a note when nothing matches, and creates it with Enter', async () => {
+    const { host } = setupWith({ createNote: vi.fn(async (_title: string) => {}) });
+    const input = searchInput(); input.value = '新的想法'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.querySelector('.dh-search-create')?.textContent).toContain('新建笔记「新的想法」');
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(host.createNote).toHaveBeenCalledWith('新的想法');
+    input.value = '想法收集'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.querySelector('.dh-search-create')).toBeNull();
+  });
+  it('renders tasks and memo widgets, completes a task, and saves memo text without re-rendering', async () => {
+    const task = { path: 'P.md', line: 0, raw: '- [ ] 写周报', text: '写周报', due: null };
+    const initial = defaultSettings(); initial.widgets.push({ id: 'tasks', kind: 'tasks', size: 'm' }, { id: 'memo', kind: 'memo', size: 'm' });
+    const { root, save, host } = setupWith({ getTasks: vi.fn(async () => [task]), completeTask: vi.fn(async () => true), addTask: vi.fn(async () => {}) }, initial);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(root.querySelector('.dh-widget-tasks')?.textContent).toContain('写周报');
+    click('完成：写周报'); await vi.advanceTimersByTimeAsync(0);
+    expect(host.completeTask).toHaveBeenCalledWith(task);
+    const memo = root.querySelector<HTMLTextAreaElement>('.dh-memo-input')!; memo.focus(); memo.value = '记得买花'; memo.dispatchEvent(new Event('input'));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(save.mock.calls.at(-1)?.[0].memo).toBe('记得买花');
+    expect(root.querySelector('.dh-memo-input')).toBe(memo);
+    const form = root.querySelector<HTMLFormElement>('.dh-task-form')!; form.querySelector('input')!.value = '新任务'; form.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(host.addTask).toHaveBeenCalledWith('新任务');
+  });
+  it('marks days that have a daily note and opens a chosen day on larger calendars', () => {
+    const now = new Date(); const openDaily = vi.fn(async (_date?: Date) => {});
+    const initial = defaultSettings(); initial.widgets = [{ id: 'calendar', kind: 'calendar', size: 'm' }];
+    const { root } = setupWith({ dailyDays: () => new Set([1]), openDaily }, initial);
+    const first = [...root.querySelectorAll<HTMLButtonElement>('.dh-day')].find(b => b.textContent === '1')!;
+    expect(first.classList.contains('dh-has-daily')).toBe(true);
+    first.click(); expect(openDaily.mock.calls[0][0]?.getDate()).toBe(1); expect(openDaily.mock.calls[0][0]?.getMonth()).toBe(now.getMonth());
+  });
+  it('applies settings-tab changes to an open homepage without being overwritten by a pending save', async () => {
+    let push: (s: Settings) => void = () => {};
+    const { root, save } = setupWith({ onSettings: fn => { push = fn; return () => {}; } });
+    click('桌面外观'); click('午夜');
+    push({ ...defaultSettings(), theme: 'midnight', clock24: false });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(save.mock.calls.at(-1)?.[0].clock24).toBe(false); expect(root.dataset.theme).toBe('midnight');
+  });
+  it('pauses vault refreshes while hidden and catches up when visible again', async () => {
+    let visible = false; const { getNotes, emit } = setupWith({ isVisible: () => visible });
+    const before = getNotes.mock.calls.length; emit(); expect(getNotes.mock.calls.length).toBe(before);
+    visible = true; await vi.advanceTimersByTimeAsync(1000); expect(getNotes.mock.calls.length).toBe(before + 1);
+  });
+  it('never puts aria-label on elements that draw their own tooltip', () => {
+    setup();
+    for (const item of document.querySelectorAll('.dh-dock-item')) { expect(item.hasAttribute('aria-label')).toBe(false); expect(item.hasAttribute('title')).toBe(false); }
+    expect(document.querySelectorAll('[title]')).toHaveLength(0);
+    expect(document.querySelector('.dh-widget[aria-label]')).toBeNull();
   });
 });

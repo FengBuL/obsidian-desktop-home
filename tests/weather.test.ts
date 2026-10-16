@@ -17,6 +17,7 @@ describe('weather data boundaries', () => {
     expect(forecastUrl(city)).toContain('timezone=auto');
     expect(weatherDescription(0)).toBe('晴朗');
     expect(weatherDescription(95)).toBe('雷雨');
+    expect(weatherDescription(53)).toBe('毛毛雨'); expect(weatherDescription(86)).toBe('阵雪'); expect(weatherDescription(45)).toBe('有雾');
   });
   it('reuses fresh cache and returns old data as stale when the network fails', async () => {
     let requests = 0;

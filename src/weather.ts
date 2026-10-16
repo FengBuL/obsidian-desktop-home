@@ -20,8 +20,8 @@ export function parseForecast(input: unknown, city: City, now = Date.now()): Wea
   return result;
 }
 export function weatherDescription(code: number): string {
-  if (code === 0) return '晴朗'; if (code < 3) return '晴间多云'; if (code === 3) return '多云';
-  if (code < 50) return '有雾'; if (code < 70) return '有雨'; if (code < 80) return '有雪'; if (code < 90) return '阵雨'; return '雷雨';
+  if (code === 0) return '晴朗'; if (code < 3) return '晴间多云'; if (code === 3) return '多云'; if (code < 50) return '有雾'; if (code < 60) return '毛毛雨';
+  if (code < 70) return '有雨'; if (code < 80) return '有雪'; if (code < 85) return '阵雨'; if (code < 90) return '阵雪'; return '雷雨';
 }
 export class WeatherService {
   constructor(private get: GetJson) {}
@@ -35,8 +35,8 @@ export class WeatherService {
     catch (error) { if (usable) return { data: usable, stale: true }; throw error; }
   }
   private async request(url: string): Promise<unknown> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try { return await Promise.race([this.get(url), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('天气服务连接超时')), 12_000); })]); }
-    finally { clearTimeout(timer); }
+    let timer: number | undefined;
+    try { return await Promise.race([this.get(url), new Promise<never>((_, reject) => { timer = window.setTimeout(() => reject(new Error('天气服务连接超时')), 12_000); })]); }
+    finally { window.clearTimeout(timer); }
   }
 }
